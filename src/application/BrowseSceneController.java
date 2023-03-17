@@ -1,13 +1,10 @@
 package application;
 
-import java.util.List;
-
-import application.api.CoinsAPIService;
-import application.api.CoinsServiceGenerator;
+import application.api.CointrackingAPI;
 import application.models.Coin;
-import application.models.Coins;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -15,133 +12,130 @@ import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
-import javafx.scene.control.ChoiceBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import lombok.extern.slf4j.Slf4j;
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
 
 @Slf4j
 public class BrowseSceneController {
 
 	@FXML
+	private TextField searchField;
+	@FXML
+	private Button searchButton;
+	@FXML
+	private Label searchLabel;
+	@FXML
+	private Button addToPersonalButton;
+	@FXML
 	private Button personalButton;
 	@FXML
-	private Button browseButton;
-	@FXML
-	private Button refreshButton;
-	@FXML
-	private ChoiceBox<String> searchChoiceBox;
-	@FXML
-	private TextField searchTextField;
-	@FXML
 	private VBox dataContainer;
+	@SuppressWarnings("rawtypes")
 	@FXML
 	private TableView tableView;
 
-	private ObservableList<Coin> coinsOL = FXCollections.observableArrayList();
+	private ObservableList<Coin> masterData = FXCollections.observableArrayList();
+	private ObservableList<Coin> results = FXCollections.observableList(masterData);
+	
+	// list to hold personal coin list
+	private ObservableList<Coin> personalList = FXCollections.observableArrayList();
 
 	public BrowseSceneController() {
+		masterData.add(new Coin("uuid", "BTC", "Bitcoin", "iconpath", 111.1, 11.1, 1.1));
+		masterData.add(new Coin("uuid", "ETH", "Ethereum", "iconpath", 111.1, 11.1, 1.1));
+		masterData.add(new Coin("uuid", "XRP", "Ripple", "iconpath", 111.1, 11.1, 1.1));
 	}
-	
+
 	@FXML
-    private void initialize() {
-        // search panel
-		refreshButton.setText("Search");
-//		refreshButton.setOnAction(event -> loadData());
-		refreshButton.setStyle("-fx-background-color: #457ecd; -fx-text-fill: #ffffff;");
+	private void initialize() {
+		// search panel
+		searchButton.setOnAction(event -> loadData());
+		searchButton.setStyle("-fx-background-color: #457ecd; -fx-text-fill: #ffffff;");
 
-        initTable();
-    }
-	
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	private void initTable() {        
-	    tableView = new TableView<>();
-		TableColumn icon = new TableColumn("Icon");
-		icon.setCellValueFactory(new PropertyValueFactory("icon"));
-		TableColumn name = new TableColumn("Name");
-		icon.setCellValueFactory(new PropertyValueFactory("name"));
-		TableColumn symbol = new TableColumn("Symbol");
-		icon.setCellValueFactory(new PropertyValueFactory("symbol"));
-		TableColumn price = new TableColumn("Price");
-		icon.setCellValueFactory(new PropertyValueFactory("price"));
-		TableColumn marketCap = new TableColumn("MarketCap");
-		icon.setCellValueFactory(new PropertyValueFactory("marketCap"));
-		TableColumn rank = new TableColumn("Rank");
-		icon.setCellValueFactory(new PropertyValueFactory("rank"));
-	    dataContainer.getChildren().add(tableView);
+		searchField.setOnKeyPressed(event -> {
+			if (event.getCode().equals(KeyCode.ENTER)) {
+				loadData();
+			}
+		});
+
+		searchField.textProperty().addListener((observable, oldValue, newValue) -> {
+			searchLabel.setText(newValue);
+		});
+
+		// add to personal
+
+		// switch to personal
+		personalButton.setOnAction(event -> {
+			try {
+				switchToPersonal(event);
+			} catch (Exception e) {
+				log.info("Unsuccessfull switch to personal scene " + e);
+			}
+		});
+
+		initTable();
 	}
 
-//	@FXML
-//	private void initialize() {
-//		personalButton.setOnAction(event -> {
-//			try {
-//				switchToPersonal(event);
-//			} catch (Exception e) {
-//				log.info("Unsuccessfull switch to personal scene " + e);
-//			}
-//		});
-//
-//		browseButton.setOnAction(event -> {
-//			getCoins();
-//		});
-//
-//		initTable();
-//	}
-//
-//	private void switchToPersonal(ActionEvent event) throws Exception {
-//		Parent root = FXMLLoader.load(getClass().getResource("PersonalScene.fxml"));
-//		Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
-//		Scene scene = new Scene(root);
-//		stage.setScene(scene);
-//		stage.show();
-//	}
-//
-//	@SuppressWarnings({ "unchecked", "rawtypes" })
-//	private void initTable() {
-//		tableView = new TableView<>(FXCollections.observableList(coinsOL));
-//		TableColumn icon = new TableColumn("Icon");
-//		icon.setCellValueFactory(new PropertyValueFactory("icon"));
-//		TableColumn name = new TableColumn("Name");
-//		icon.setCellValueFactory(new PropertyValueFactory("name"));
-//		TableColumn symbol = new TableColumn("Symbol");
-//		icon.setCellValueFactory(new PropertyValueFactory("symbol"));
-//		TableColumn price = new TableColumn("Price");
-//		icon.setCellValueFactory(new PropertyValueFactory("price"));
-//		TableColumn marketCap = new TableColumn("MarketCap");
-//		icon.setCellValueFactory(new PropertyValueFactory("marketCap"));
-//		TableColumn rank = new TableColumn("Rank");
-//		icon.setCellValueFactory(new PropertyValueFactory("rank"));
-//		tableView.getColumns().addAll(icon, name, symbol, price, marketCap, rank);
-//
-//	}
-//
-//	private void getCoins() {
-//		CoinsAPIService coinsService = CoinsServiceGenerator.createService(CoinsAPIService.class);
-//
-//		Call<Coins> call = coinsService.getCoins();
-//		call.enqueue(new Callback<Coins>() {
-//
-//			@Override
-//			public void onResponse(Call<Coins> call, Response<Coins> response) {
-//				log.info("Get Coins Success");
-//				Coins coins = response.body();
-//				List<Coin> coinsList = coins.getCoinsList();
-//				ObservableList<Coin> coinss = FXCollections.observableArrayList(coinsList);
-//				System.out.println(coinss);
-//
-//			}
-//
-//			@Override
-//			public void onFailure(Call<Coins> call, Throwable t) {
-//				log.info("Get Coins Failure");
-//			}
-//		});
-//	}
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private void initTable() {
+		tableView = new TableView<>(FXCollections.observableList(masterData));
+		tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+
+		TableColumn name = new TableColumn("Name");
+		name.setCellValueFactory(new PropertyValueFactory("name"));
+		TableColumn symbol = new TableColumn("Symbol");
+		symbol.setCellValueFactory(new PropertyValueFactory("symbol"));
+		TableColumn price = new TableColumn("Price");
+		price.setCellValueFactory(new PropertyValueFactory("price"));
+		TableColumn marketCap = new TableColumn("MarketCap");
+		marketCap.setCellValueFactory(new PropertyValueFactory("marketCap"));
+		TableColumn rank = new TableColumn("Rank");
+		rank.setCellValueFactory(new PropertyValueFactory("rank"));
+		tableView.getColumns().addAll(name, symbol, price, marketCap, rank);
+
+		dataContainer.getChildren().add(tableView);
+	}
+
+	@SuppressWarnings("unchecked")
+	private void loadData() {
+
+		// TODO implement search
+//		String searchText = searchField.getText();
+
+		Task<ObservableList<Coin>> task = new Task<ObservableList<Coin>>() {
+			@Override
+			protected ObservableList<Coin> call() throws Exception {
+				updateMessage("Loading data");
+				return FXCollections.observableList(CointrackingAPI.getCoins());
+			}
+		};
+
+		task.setOnSucceeded(event -> {
+			results = task.getValue();
+			tableView.setItems(results);
+		});
+
+		Thread th = new Thread(task);
+		th.setDaemon(true);
+		th.start();
+	}
+
+	private void switchToPersonal(ActionEvent event) throws Exception {
+		Parent root = FXMLLoader.load(getClass().getResource("PersonalScene.fxml"));
+		Stage stage = (Stage) ((Node) event.getSource()).getScene().getWindow();
+		Scene scene = new Scene(root);
+		stage.setScene(scene);
+		stage.show();
+	}
+	
+	private void addToPersonal(Coin coin) {
+		personalList.add(coin);
+	}
 }

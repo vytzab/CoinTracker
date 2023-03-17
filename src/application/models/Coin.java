@@ -9,6 +9,10 @@ public class Coin {
 	private Double rank;
 	private Double price;
 
+	public Coin() {
+		
+	}
+	
 	public Coin(String uuid, String symbol, String name, String icon, Double marketCap, Double rank, Double price) {
 		super();
 		this.uuid = uuid;

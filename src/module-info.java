@@ -10,7 +10,8 @@ module CoinTracker {
 	requires okhttp3;
 	requires retrofit2.converter.gson;
 	requires unirest.java;
+	requires java.net.http;
 
 	opens application to javafx.graphics, javafx.fxml, com.google.gson;
-	opens application.models to com.google.gson;
+	opens application.models to com.google.gson, javafx.base;
 }
